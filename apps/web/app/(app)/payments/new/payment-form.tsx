@@ -84,7 +84,7 @@ export function PaymentForm({ accounts, customers, openOrders, maxTransferSdg, t
             <select name="bank_account_id" value={accountId} onChange={(e) => setAccountId(e.target.value)} required className="field mt-2">
               {accounts.map((a) => (
                 <option key={a.bank_account_id} value={a.bank_account_id}>
-                  {a.name} — {formatSdg(a.remaining_today_sdg)} left today
+                  {a.name}, {formatSdg(a.remaining_today_sdg)} left today
                 </option>
               ))}
             </select>
@@ -96,7 +96,7 @@ export function PaymentForm({ accounts, customers, openOrders, maxTransferSdg, t
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
-                  {c.city ? ` · ${c.city}` : ''}
+                  {c.city ? `, ${c.city}` : ''}
                 </option>
               ))}
             </select>
@@ -147,7 +147,7 @@ export function PaymentForm({ accounts, customers, openOrders, maxTransferSdg, t
                   <li key={o.id} className="grid grid-cols-[1fr_160px] items-center gap-3 px-4 py-3 md:px-5">
                     <div>
                       <p className="text-sm font-medium">
-                        Order #{o.number} <span className="num text-xs text-muted">· {o.booked_on}</span>
+                        Order #{o.number} <span className="num text-xs text-muted">{o.booked_on}</span>
                       </p>
                       <p className="num text-xs text-muted">{formatSdg(open)} open of {formatSdg(o.total_sdg)}</p>
                     </div>

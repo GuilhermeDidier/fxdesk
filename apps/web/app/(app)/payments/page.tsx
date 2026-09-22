@@ -1,7 +1,8 @@
 import { formatRate, formatSdg, formatUsd } from '@fxdesk/money';
+import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import { LimitBar } from '../../../components/limit-bar';
-import { requireRole } from '../../../lib/session';
+import { requireAccess } from '../../../lib/session';
 import { supabaseServer } from '../../../lib/supabase/server';
 import type { BankAccountStatus } from '../../../lib/types';
 
@@ -20,9 +21,8 @@ interface PaymentRow {
   bank_account: { name: string };
 }
 
-export default async function PaymentsPage({ searchParams }: { searchParams: Promise<{ recorded?: string }> }) {
-  await requireRole('owner', 'sales');
-  const { recorded } = await searchParams;
+export default async function PaymentsPage() {
+  await requireAccess('/payments');
   const supabase = await supabaseServer();
   const [{ data: accounts }, { data: payments }] = await Promise.all([
     supabase.from('bank_account_status').select('*').order('name'),
@@ -35,7 +35,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
       .returns<PaymentRow[]>(),
   ]);
 
-  const withProof = (payments ?? []).filter((p) => p.proof_path).map((p) => p.proof_path!);
+  const withProof = (payments ?? []).flatMap((p) => (p.proof_path ? [p.proof_path] : []));
   const { data: signed } = withProof.length
     ? await supabase.storage.from('payment-proofs').createSignedUrls(withProof, 600)
     : { data: [] };
@@ -49,11 +49,10 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
           <h1 className="font-display text-3xl font-extrabold tracking-tight">Payments</h1>
         </div>
         <Link href="/payments/new" className="btn-primary">
+          <Plus className="size-4" aria-hidden />
           Record a transfer
         </Link>
       </header>
-
-      {recorded && <p className="mb-4 rounded-md bg-paid-wash p-3 text-sm text-paid">Transfer recorded.</p>}
 
       <section aria-label="Bank accounts" className="mb-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {((accounts ?? []) as BankAccountStatus[]).map((a) => (
@@ -109,12 +108,10 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
                 <td className="num px-2 text-end text-muted">{formatRate(p.sdg_per_usd_e6)}</td>
                 <td className="num px-2 text-end">{formatUsd(p.usd_value_cents)}</td>
                 <td className="px-4 text-end">
-                  {p.proof_path && proofUrl.get(p.proof_path) ? (
+                  {p.proof_path && proofUrl.get(p.proof_path) && (
                     <a href={proofUrl.get(p.proof_path) ?? undefined} target="_blank" rel="noreferrer" className="text-brand underline">
                       View
                     </a>
-                  ) : (
-                    <span className="text-xs text-muted">—</span>
                   )}
                 </td>
               </tr>

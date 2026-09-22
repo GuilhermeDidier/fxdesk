@@ -1,13 +1,14 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { env } from './lib/env';
 
 // Refreshes the Supabase session cookie on every request and sends signed-out
 // visitors to /login. Authorisation itself lives in the database (RLS).
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    env.supabaseUrl,
+    env.supabaseAnonKey,
     {
       cookies: {
         getAll: () => request.cookies.getAll(),
@@ -27,7 +28,9 @@ export async function proxy(request: NextRequest) {
   if (!signedIn && !path.startsWith('/login')) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
-  if (signedIn && path.startsWith('/login')) {
+  // /login?error=... must stay reachable while signed in, or a user without a
+  // company would bounce between / and /login forever.
+  if (signedIn && path.startsWith('/login') && !request.nextUrl.searchParams.has('error')) {
     return NextResponse.redirect(new URL('/', request.url));
   }
   return response;

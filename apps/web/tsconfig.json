@@ -72,7 +72,9 @@
     ".next",
     "eslint.config.js",
     "eslint.config.cjs",
-    "eslint.config.mjs"
+    "eslint.config.mjs",
+    "lib/**/*.spec.ts",
+    "components/**/*.spec.tsx"
   ],
   "references": [
     {

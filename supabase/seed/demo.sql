@@ -27,7 +27,10 @@ declare
   tx       int := 40000;
   placed   boolean;
   a        uuid;
+  i        int;
   used     bigint;
+  sku_id   jsonb;
+  goal     bigint;
 begin
   perform setseed(0.42);
   perform set_config('request.jwt.claim.sub', owner::text, true);
@@ -105,6 +108,7 @@ begin
   join public.shipments s on s.reference = c.ref and s.tenant_id = t;
 
   perform public.close_shipment(id) from public.shipments where tenant_id = t and reference = 'SHP-2406';
+  select jsonb_object_agg(sku, id) into sku_id from public.products where tenant_id = t;
 
   -- orders, day by day
   for d in reverse 82..0 loop
@@ -112,6 +116,68 @@ begin
     if d = 38 then
       perform public.close_shipment(id) from public.shipments where tenant_id = t and reference = 'SHP-2407';
     end if;
+
+    -- The last days are staged so that every role opens onto real work:
+    -- quotes out, discounts waiting for the owner, a slow payer with a large
+    -- balance, an account close to its daily limit, goods ready to leave.
+    -- cust[] is ordered by name: 1 Al-Amal, 2 Dongola, 4 Gezira, 5 Kassala,
+    -- 6 Kordofan, 8 Red Sea (slow payer).
+    if d = 3 then
+      oid := private.book_order(t, cust[4], advisers[1], day, jsonb_build_array(
+        jsonb_build_object('product_id', sku_id ->> 'PMP-S5', 'qty', 1, 'discount_bps', 300),
+        jsonb_build_object('product_id', sku_id ->> 'PMP-S2', 'qty', 2, 'discount_bps', 300),
+        jsonb_build_object('product_id', sku_id ->> 'PNL-M550', 'qty', 24, 'discount_bps', 300)),
+        'Irrigation scheme near Wad Madani, three wells');
+      update public.orders set status = 'quote', approved_by = null, approved_at = null where id = oid;
+    elsif d = 2 then
+      perform private.book_order(t, cust[8], advisers[2], day, jsonb_build_array(
+        jsonb_build_object('product_id', sku_id ->> 'BAT-L10', 'qty', 3, 'discount_bps', 200),
+        jsonb_build_object('product_id', sku_id ->> 'INV-H10', 'qty', 3, 'discount_bps', 200)),
+        'Hotel backup system, Port Sudan');
+    elsif d = 1 then
+      perform private.book_order(t, cust[5], advisers[1], day, jsonb_build_array(
+        jsonb_build_object('product_id', sku_id ->> 'INV-H10', 'qty', 3, 'discount_bps', 700)),
+        'Dealer asks 7% to match a competitor in Kassala');
+      perform private.book_order(t, cust[1], advisers[1], day, jsonb_build_array(
+        jsonb_build_object('product_id', sku_id ->> 'INV-H5', 'qty', 2, 'discount_bps', 250),
+        jsonb_build_object('product_id', sku_id ->> 'PNL-M550', 'qty', 20, 'discount_bps', 250)),
+        null);
+    elsif d = 0 then
+      perform private.book_order(t, cust[6], advisers[2], day, jsonb_build_array(
+        jsonb_build_object('product_id', sku_id ->> 'PMP-S2', 'qty', 2, 'discount_bps', 600)),
+        'Two pumps for a cooperative, price agreed on the phone');
+      oid := private.book_order(t, cust[2], advisers[1], day, jsonb_build_array(
+        jsonb_build_object('product_id', sku_id ->> 'INV-H5', 'qty', 1, 'discount_bps', 0),
+        jsonb_build_object('product_id', sku_id ->> 'BAT-L5', 'qty', 2, 'discount_bps', 0),
+        jsonb_build_object('product_id', sku_id ->> 'PNL-M450', 'qty', 12, 'discount_bps', 0)),
+        'Home system for a clinic in Dongola');
+      update public.orders set status = 'quote', approved_by = null, approved_at = null where id = oid;
+
+      -- the slow payer starts paying today, all into one account: 12 of its 15 million
+      select * into o from public.orders where tenant_id = t and customer_id = cust[8] and booked_on = today - 2;
+      a := accts[1];
+      for i in 1..4 loop
+        tx := tx + 17;
+        perform private.book_payment(a, 'TRX' || lpad(tx::text, 8, '0'), 3000000, o.customer_id,
+                  jsonb_build_array(jsonb_build_object('order_id', o.id, 'amount_sdg', 3000000)), day, null, advisers[2]);
+      end loop;
+
+      -- yesterday's Al-Amal order is paid in full today, spread over the other accounts
+      select * into o from public.orders where tenant_id = t and customer_id = cust[1] and booked_on = today - 1;
+      goal := o.total_sdg;
+      while goal > 0 loop
+        amt := least(3000000, goal);
+        select x.id into a from unnest(accts[2:]) as u(id) join public.bank_accounts x on x.id = u.id
+         where (select coalesce(sum(amount_sdg), 0) from public.payments where bank_account_id = x.id and received_on = day) + amt <= x.daily_limit_sdg
+         order by x.name limit 1;
+        exit when a is null;
+        tx := tx + 23;
+        perform private.book_payment(a, 'TRX' || lpad(tx::text, 8, '0'), amt, o.customer_id,
+                  jsonb_build_array(jsonb_build_object('order_id', o.id, 'amount_sdg', amt)), day, null, advisers[1]);
+        goal := goal - amt;
+      end loop;
+    end if;
+
     continue when random() < 0.45;
 
     n_lines := 1 + floor(random() * 3)::int;

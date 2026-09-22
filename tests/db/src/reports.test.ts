@@ -64,4 +64,22 @@ describe('a report run today gives the same numbers later', () => {
     const { data } = await w.users.owner.client.from('shipment_lines').select('allocated_charges_usd_cents, shipment:shipments!inner(reference)').eq('shipment.reference', 'SH-1');
     expect(data!.reduce((s, l) => s + l.allocated_charges_usd_cents!, 0)).toBe(150001);
   });
+
+  it('marks the cost of goods sold before they landed as provisional, at the supplier price', async () => {
+    const { rows: [p] } = await w.db.query(
+      `insert into products (tenant_id, sku, name, category, price_usd_cents) values ($1, 'SEA', 'At sea', 'pump', 100000) returning id`,
+      [w.tenantId],
+    );
+    const { rows: [sh] } = await w.db.query(`insert into shipments (tenant_id, reference, supplier) values ($1, 'SH-SEA', 'S') returning id`, [w.tenantId]);
+    await w.db.query(`insert into shipment_lines (shipment_id, tenant_id, product_id, qty, unit_cost_usd_cents) values ($1, $2, $3, 5, 61000)`, [sh.id, w.tenantId, p.id]);
+
+    const { data: id, error } = await w.users.sales.client.rpc('create_order', {
+      p_tenant_id: w.tenantId,
+      p_customer_id: w.customerId,
+      p_lines: [{ product_id: p.id, qty: 2, discount_bps: 0 }],
+    });
+    expect(error).toBeNull();
+    const { data } = await w.users.owner.client.from('order_profit').select('cost_usd_cents, cost_provisional').eq('order_id', id).single();
+    expect(data).toEqual({ cost_usd_cents: 122000, cost_provisional: true });
+  });
 });

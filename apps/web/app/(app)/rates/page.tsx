@@ -1,6 +1,6 @@
 import { formatRate } from '@fxdesk/money';
 import { Stamp } from '../../../components/stamp';
-import { requireRole } from '../../../lib/session';
+import { requireAccess } from '../../../lib/session';
 import { supabaseServer } from '../../../lib/supabase/server';
 import type { FxRate } from '../../../lib/types';
 import { RateForm } from './rate-form';
@@ -8,7 +8,7 @@ import { RateForm } from './rate-form';
 export const metadata = { title: 'Rates · FX Desk' };
 
 export default async function RatesPage() {
-  const s = await requireRole('owner');
+  const s = await requireAccess('/rates');
   const supabase = await supabaseServer();
   const [{ data }, used] = await Promise.all([
     supabase.from('fx_rates').select('id, rate_date, sdg_per_usd_e6, eur_per_usd_e6').order('rate_date', { ascending: false }).limit(120).returns<FxRate[]>(),
@@ -46,7 +46,7 @@ export default async function RatesPage() {
 
       {series.length > 1 && (
         <section className="sheet mt-6 p-5">
-          <p className="eyebrow">Pounds per dollar · last {series.length} days</p>
+          <p className="eyebrow">Pounds per dollar, last {series.length} days</p>
           <RateChart rates={series} />
         </section>
       )}

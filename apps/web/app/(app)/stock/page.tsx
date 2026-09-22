@@ -1,5 +1,5 @@
 import { formatUsd } from '@fxdesk/money';
-import { can, getSession } from '../../../lib/session';
+import { can, requireAccess } from '../../../lib/session';
 import { supabaseServer } from '../../../lib/supabase/server';
 
 export const metadata = { title: 'Stock · FX Desk' };
@@ -24,7 +24,7 @@ interface Shipment {
 }
 
 export default async function StockPage() {
-  const s = await getSession();
+  const s = await requireAccess('/stock');
   const supabase = await supabaseServer();
   const [{ data: levels }, { data: shipments }, { data: costs }] = await Promise.all([
     supabase.from('stock_levels').select('*').order('sku').returns<Level[]>(),
@@ -64,7 +64,7 @@ export default async function StockPage() {
                 </td>
                 <td className={`num px-2 text-end font-medium ${l.below_min ? 'text-red' : ''}`}>{l.on_hand}</td>
                 <td className="num px-2 text-end text-muted">{l.min_stock}</td>
-                {owner && <td className="num px-4 text-end">{avgCost.has(l.product_id) ? formatUsd(avgCost.get(l.product_id)!) : '—'}</td>}
+                {owner && <td className="num px-4 text-end">{avgCost.has(l.product_id) ? formatUsd(avgCost.get(l.product_id) ?? 0) : null}</td>}
               </tr>
             ))}
           </tbody>
@@ -89,7 +89,7 @@ export default async function StockPage() {
                       <p className="num font-semibold">{sh.reference}</p>
                       <p className="text-xs text-muted">
                         {sh.supplier}
-                        {sh.arrived_on ? ` · arrived ${sh.arrived_on}` : ' · in transit'}
+                        {sh.arrived_on ? `, arrived ${sh.arrived_on}` : ', in transit'}
                       </p>
                     </div>
                     <span className={`rounded px-2 py-0.5 text-xs font-semibold ${sh.status === 'closed' ? 'bg-ink text-white' : 'bg-sand text-sand-ink'}`}>
@@ -113,8 +113,8 @@ export default async function StockPage() {
                             <td className="px-4 py-1.5">{l.product.sku}</td>
                             <td className="px-2 text-end">{l.qty}</td>
                             <td className="px-2 text-end">{formatUsd(l.unit_cost_usd_cents)}</td>
-                            <td className="px-2 text-end text-muted">{l.allocated_charges_usd_cents === null ? '—' : formatUsd(l.allocated_charges_usd_cents)}</td>
-                            <td className="px-4 text-end font-semibold">{l.landed_unit_cost_usd_cents === null ? '—' : formatUsd(l.landed_unit_cost_usd_cents)}</td>
+                            <td className="px-2 text-end text-muted">{l.allocated_charges_usd_cents === null ? null : formatUsd(l.allocated_charges_usd_cents)}</td>
+                            <td className="px-4 text-end font-semibold">{l.landed_unit_cost_usd_cents === null ? null : formatUsd(l.landed_unit_cost_usd_cents)}</td>
                           </tr>
                         ))}
                       </tbody>

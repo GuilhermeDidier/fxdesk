@@ -1,4 +1,4 @@
-import { requireRole } from '../../../../lib/session';
+import { requireAccess } from '../../../../lib/session';
 import { supabaseServer } from '../../../../lib/supabase/server';
 import type { BankAccountStatus, Customer } from '../../../../lib/types';
 import { PaymentForm, type OpenOrder } from './payment-form';
@@ -6,7 +6,7 @@ import { PaymentForm, type OpenOrder } from './payment-form';
 export const metadata = { title: 'Record a transfer · FX Desk' };
 
 export default async function NewPaymentPage({ searchParams }: { searchParams: Promise<{ customer?: string; order?: string }> }) {
-  const s = await requireRole('owner', 'sales');
+  const s = await requireAccess('/payments/new');
   const { customer, order } = await searchParams;
   const supabase = await supabaseServer();
   const [{ data: accounts }, { data: customers }, { data: orders }] = await Promise.all([

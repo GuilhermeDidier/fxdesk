@@ -9,6 +9,7 @@ import {
   priceOrder,
   type DiscountPolicy,
 } from '@fxdesk/money';
+import { Plus, X } from 'lucide-react';
 import { useMemo, useState, useTransition } from 'react';
 import { BandChip } from '../../../../components/band';
 import type { Customer, FxRate, Product } from '../../../../lib/types';
@@ -47,6 +48,9 @@ function parseRow(row: Row, products: Map<string, Product>) {
   return { product, qty, discountBps, valid };
 }
 
+type ValidRow = ReturnType<typeof parseRow> & { product: Product };
+const isValid = (p: ReturnType<typeof parseRow>): p is ValidRow => p.valid && Boolean(p.product);
+
 export function OrderForm({ customers, products, onHand, policy, maxTransferSdg, rate, today }: Props) {
   const [customerId, setCustomerId] = useState('');
   const [note, setNote] = useState('');
@@ -56,11 +60,11 @@ export function OrderForm({ customers, products, onHand, policy, maxTransferSdg,
 
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const parsed = rows.map((r) => parseRow(r, byId));
-  const validLines = parsed.filter((p) => p.valid);
+  const validLines = parsed.filter(isValid);
 
   const priced = rate
     ? priceOrder(
-        validLines.map((p) => ({ qty: p.qty, unitPriceUsdCents: p.product!.price_usd_cents, discountBps: p.discountBps })),
+        validLines.map((p) => ({ qty: p.qty, unitPriceUsdCents: p.product.price_usd_cents, discountBps: p.discountBps })),
         { sdgPerUsdE6: rate.sdg_per_usd_e6, eurPerUsdE6: rate.eur_per_usd_e6 },
         policy,
       )
@@ -78,13 +82,14 @@ export function OrderForm({ customers, products, onHand, policy, maxTransferSdg,
   const update = (key: number, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
-  function submit() {
+  function submit(asQuote: boolean) {
     setError(null);
     startTransition(async () => {
       const result = await createOrder({
         customerId,
         note,
-        lines: parsed.filter((p) => p.valid).map((p) => ({ productId: p.product!.id, qty: p.qty, discountBps: p.discountBps })),
+        asQuote,
+        lines: validLines.map((p) => ({ productId: p.product.id, qty: p.qty, discountBps: p.discountBps })),
       });
       if (result?.error) setError(result.error);
     });
@@ -104,7 +109,7 @@ export function OrderForm({ customers, products, onHand, policy, maxTransferSdg,
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
-                  {c.city ? ` · ${c.city}` : ''}
+                  {c.city ? `, ${c.city}` : ''}
                 </option>
               ))}
             </select>
@@ -123,9 +128,9 @@ export function OrderForm({ customers, products, onHand, policy, maxTransferSdg,
         {/* Lines */}
         <section className="sheet">
           <div className="flex items-baseline justify-between border-b border-rule px-4 py-3 md:px-5">
-            <span className="eyebrow">Products · fixed dollar prices</span>
+            <span className="eyebrow">Products at fixed dollar prices</span>
             <span className="text-xs text-muted">
-              Sand up to {formatBps(policy.sandMaxBps)} · red up to {formatBps(policy.redMaxBps)} · above needs the owner
+              Sand up to {formatBps(policy.sandMaxBps)}, red up to {formatBps(policy.redMaxBps)}, above that the owner approves
             </span>
           </div>
 
@@ -156,14 +161,14 @@ export function OrderForm({ customers, products, onHand, policy, maxTransferSdg,
                       <option value="">Choose a product…</option>
                       {products.map((prod) => (
                         <option key={prod.id} value={prod.id}>
-                          {prod.sku} · {prod.name} — {formatUsd(prod.price_usd_cents)}
+                          {prod.sku}, {prod.name}, {formatUsd(prod.price_usd_cents)}
                         </option>
                       ))}
                     </select>
                     {p.product && (
                       <p className={`mt-1 text-xs ${stock !== null && p.qty > stock ? 'text-red' : 'text-muted'}`}>
-                        {formatUsd(p.product.price_usd_cents)} each · {stock} in stock
-                        {stock !== null && p.qty > stock ? ' — not enough to release' : ''}
+                        {formatUsd(p.product.price_usd_cents)} each, {stock} in stock
+                        {stock !== null && p.qty > stock ? ', not enough to release today' : ''}
                       </p>
                     )}
                   </div>
@@ -196,9 +201,7 @@ export function OrderForm({ customers, products, onHand, policy, maxTransferSdg,
                           <span className="block text-xs text-muted">−{formatUsd(priceLine.discountUsdCents)}</span>
                         )}
                       </>
-                    ) : (
-                      <span className="text-muted">—</span>
-                    )}
+                    ) : null}
                   </div>
                   <button
                     type="button"
@@ -206,7 +209,7 @@ export function OrderForm({ customers, products, onHand, policy, maxTransferSdg,
                     className="justify-self-end rounded p-1 text-muted hover:bg-paper hover:text-red"
                     aria-label={`Remove line ${i + 1}`}
                   >
-                    ×
+                    <X className="size-4" aria-hidden />
                   </button>
                 </li>
               );
@@ -214,6 +217,7 @@ export function OrderForm({ customers, products, onHand, policy, maxTransferSdg,
           </ol>
           <div className="border-t border-rule px-4 py-3 md:px-5">
             <button type="button" onClick={() => setRows((rs) => [...rs, emptyRow()])} className="btn-quiet">
+              <Plus className="size-4" aria-hidden />
               Add product
             </button>
           </div>
@@ -238,7 +242,7 @@ export function OrderForm({ customers, products, onHand, policy, maxTransferSdg,
           {rate ? (
             <>
               <p className="num text-xs text-muted">
-                × {formatRate(rate.sdg_per_usd_e6)} SDG per dollar, rate of {today}
+                At {formatRate(rate.sdg_per_usd_e6)} SDG per dollar, the rate of {today}
               </p>
               <p className="mt-1 text-xs font-medium text-muted">Customer pays</p>
               <p className="num text-[28px] font-semibold leading-tight tracking-tight">{formatSdg(priced?.totalSdg ?? 0)}</p>
@@ -268,12 +272,16 @@ export function OrderForm({ customers, products, onHand, policy, maxTransferSdg,
               {error}
             </p>
           )}
-          <button type="button" onClick={submit} disabled={!canSubmit} className="btn-primary w-full">
-            {pending ? 'Booking…' : priced?.needsOwnerApproval ? 'Send for approval' : 'Book order'}
+          <button type="button" onClick={() => submit(false)} disabled={!canSubmit} className="btn-primary w-full">
+            {pending ? 'Saving…' : priced?.needsOwnerApproval ? 'Send for approval' : 'Book order'}
+          </button>
+          <button type="button" onClick={() => submit(true)} disabled={!canSubmit} className="btn-quiet w-full">
+            Save as quote
           </button>
           <p className="text-xs text-muted">
             The database re-prices every line from the catalogue and freezes today&apos;s rate on the order. The
-            amounts above are a preview of exactly that calculation.
+            amounts above are a preview of exactly that calculation. A quote is not booked: it is re-priced at the
+            rate of the day the dealer accepts.
           </p>
         </div>
       </aside>

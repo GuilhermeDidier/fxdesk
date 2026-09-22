@@ -1,6 +1,7 @@
 'use server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { withDone } from '../../../lib/done';
 import { requireRole } from '../../../lib/session';
 import { supabaseServer } from '../../../lib/supabase/server';
 
@@ -57,5 +58,5 @@ export async function recordPayment(_: string | null, form: FormData): Promise<s
   revalidatePath('/payments');
   revalidatePath('/orders');
   const back = String(form.get('return_to') ?? '');
-  redirect(back.startsWith('/orders/') ? back : '/payments?recorded=1');
+  redirect(withDone(back.startsWith('/orders/') ? back : '/payments', `Transfer ${txCode} recorded`));
 }

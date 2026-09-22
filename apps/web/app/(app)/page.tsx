@@ -1,26 +1,19 @@
 import { formatEur, formatSdg, formatUsd } from '@fxdesk/money';
 import Link from 'next/link';
-import { can, getSession } from '../../lib/session';
+import { buildAttention } from '../../lib/attention';
+import { can, requireAccess } from '../../lib/session';
 import { supabaseServer } from '../../lib/supabase/server';
 import type { BankAccountStatus } from '../../lib/types';
 
 export const metadata = { title: 'Overview · FX Desk' };
 
-interface Attention {
-  key: string;
-  tone: 'red' | 'sand' | 'plain';
-  title: string;
-  detail: string;
-  href: string;
-}
-
 export default async function Overview() {
-  const s = await getSession();
+  const s = await requireAccess('/');
   const supabase = await supabaseServer();
   const monthStart = s.today.slice(0, 8) + '01';
 
   const [orders, accounts, stock, cashToday, profit] = await Promise.all([
-    supabase.from('orders').select('id, number, status, total_sdg, paid_sdg, released_at').neq('status', 'cancelled'),
+    supabase.from('orders').select('status, total_sdg, paid_sdg, released_at, converted_to').neq('status', 'cancelled'),
     can(s, 'owner', 'sales') ? supabase.from('bank_account_status').select('*') : Promise.resolve({ data: [] }),
     supabase.from('stock_levels').select('sku, name, on_hand, min_stock').eq('below_min', true),
     can(s, 'owner', 'sales')
@@ -32,49 +25,17 @@ export default async function Overview() {
   ]);
 
   const all = orders.data ?? [];
-  const pending = all.filter((o) => o.status === 'pending_approval');
   const open = all.filter((o) => o.status === 'confirmed' && o.paid_sdg < o.total_sdg);
-  const ready = all.filter((o) => o.status === 'confirmed' && o.paid_sdg >= o.total_sdg && !o.released_at);
   const openSdg = open.reduce((sum, o) => sum + o.total_sdg - o.paid_sdg, 0);
-  const nearLimit = ((accounts.data ?? []) as BankAccountStatus[]).filter((a) => a.received_today_sdg >= a.daily_limit_sdg * 0.8);
-  const low = stock.data ?? [];
   const cash = (cashToday.data ?? []) as { amount_sdg: number; usd_value_cents: number }[];
+  const attention = buildAttention({
+    role: s.role,
+    orders: all,
+    accounts: (accounts.data ?? []) as BankAccountStatus[],
+    lowStock: stock.data ?? [],
+  });
 
-  const attention: Attention[] = [];
-  if (pending.length && can(s, 'owner', 'sales'))
-    attention.push({
-      key: 'approval',
-      tone: 'red',
-      title: `${pending.length} order${pending.length > 1 ? 's' : ''} waiting for discount approval`,
-      detail: can(s, 'owner') ? 'Customers cannot pay until you approve.' : 'The owner has to approve these first.',
-      href: '/orders?view=approval',
-    });
-  if (ready.length && can(s, 'owner', 'warehouse'))
-    attention.push({
-      key: 'release',
-      tone: 'sand',
-      title: `${ready.length} paid order${ready.length > 1 ? 's' : ''} ready to release`,
-      detail: 'Fully paid. The goods can leave the warehouse.',
-      href: '/orders?view=release',
-    });
-  for (const a of nearLimit)
-    attention.push({
-      key: a.bank_account_id,
-      tone: a.remaining_today_sdg <= 0 ? 'red' : 'sand',
-      title: `${a.name}: ${a.remaining_today_sdg <= 0 ? 'daily limit reached' : `${formatSdg(a.remaining_today_sdg)} left today`}`,
-      detail: 'Point dealers to another account for the rest of today.',
-      href: '/payments',
-    });
-  for (const p of low)
-    attention.push({
-      key: p.sku,
-      tone: p.on_hand <= 0 ? 'red' : 'sand',
-      title: `${p.name}: ${p.on_hand} in stock`,
-      detail: `Minimum is ${p.min_stock}.`,
-      href: '/stock',
-    });
-
-  const toneBar = { red: 'bg-red', sand: 'bg-sand-ink', plain: 'bg-rule' } as const;
+  const toneBar = { red: 'bg-red', sand: 'bg-sand-ink' } as const;
 
   return (
     <>
@@ -113,7 +74,7 @@ export default async function Overview() {
               <p className="eyebrow">Cash in today</p>
               <p className="num mt-1 text-2xl font-semibold">{formatSdg(cash.reduce((a, p) => a + p.amount_sdg, 0))}</p>
               <p className="num text-xs text-muted">
-                {cash.length} transfer{cash.length === 1 ? '' : 's'} · worth {formatUsd(cash.reduce((a, p) => a + p.usd_value_cents, 0))} at today&apos;s rate
+                {cash.length} transfer{cash.length === 1 ? '' : 's'}, worth {formatUsd(cash.reduce((a, p) => a + p.usd_value_cents, 0))} at today&apos;s rate
               </p>
               <div className="mt-4 border-t border-rule pt-3">
                 <p className="eyebrow">Still to collect</p>
@@ -124,7 +85,7 @@ export default async function Overview() {
           )}
           {profit.data && (
             <section className="sheet p-5">
-              <p className="eyebrow">Profit this month · after currency</p>
+              <p className="eyebrow">Profit this month, after currency</p>
               <p className="num mt-1 text-2xl font-semibold">{formatUsd(profit.data.net_usd_cents)}</p>
               <p className="num text-sm text-muted">{formatEur(profit.data.net_eur_cents)}</p>
               <p className={`num mt-2 text-xs ${profit.data.fx_usd_cents < 0 ? 'text-red' : 'text-muted'}`}>
@@ -132,6 +93,18 @@ export default async function Overview() {
               </p>
               <Link href="/reports" className="mt-3 inline-block text-sm font-semibold text-brand hover:underline">
                 Open profit report
+              </Link>
+            </section>
+          )}
+          {s.role === 'marketing' && (
+            <section className="sheet p-5">
+              <p className="eyebrow">Your part</p>
+              <p className="mt-1 text-sm text-muted">
+                Keep the dealer list and its labels current, and follow up on quotes until the dealer says yes. Prices,
+                payments and costs stay with sales and the owner.
+              </p>
+              <Link href="/customers" className="mt-3 inline-block text-sm font-semibold text-brand hover:underline">
+                Open customers
               </Link>
             </section>
           )}

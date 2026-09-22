@@ -18,7 +18,7 @@ export function adminDb() {
   return new pg.Client({ connectionString: cs, ssl: /localhost|127\.0\.0\.1/.test(cs) ? false : { rejectUnauthorized: false } });
 }
 
-export type Role = 'owner' | 'sales' | 'warehouse';
+export type Role = 'owner' | 'sales' | 'warehouse' | 'marketing';
 
 export interface World {
   tenantId: string;
@@ -32,7 +32,7 @@ export interface World {
 }
 
 /**
- * A fresh tenant with three users (one per role), the two products of the
+ * A fresh tenant with four users (one per role), the two products of the
  * worked example, a closed shipment, today's rate (8,012.5 / 0.9184) and the
  * rate of the day before (7,900 / 0.918).
  */
@@ -50,7 +50,7 @@ export async function buildWorld(label: string): Promise<World> {
     `insert into tenants (name, brand_name) values ($1, $1) returning id, (now() at time zone timezone)::date::text as today`,
     [`test-${run}`],
   );
-  for (const role of ['owner', 'sales', 'warehouse'] as Role[]) {
+  for (const role of ['owner', 'sales', 'warehouse', 'marketing'] as Role[]) {
     const email = `${role}.${run}@fxdesk.test`;
     const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
     if (error) throw error;

@@ -1,6 +1,8 @@
 'use server';
 import { parseRate } from '@fxdesk/money';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { withDone } from '../../../lib/done';
 import { requireRole } from '../../../lib/session';
 import { supabaseServer } from '../../../lib/supabase/server';
 
@@ -23,5 +25,5 @@ export async function setTodayRate(_: string | null, form: FormData): Promise<st
   if (error) return error.message;
 
   revalidatePath('/', 'layout');
-  return null;
+  redirect(withDone('/rates', `Rate of ${s.today} saved`));
 }

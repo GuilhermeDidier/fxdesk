@@ -9,10 +9,12 @@
     "@fxdesk/money": "*",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.0",
+    "lucide-react": "^1.47.0",
     "next": "~16.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "sonner": "^2.0.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",

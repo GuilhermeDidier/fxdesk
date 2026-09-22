@@ -1,4 +1,4 @@
-import { requireRole } from '../../../../lib/session';
+import { requireAccess } from '../../../../lib/session';
 import { supabaseServer } from '../../../../lib/supabase/server';
 import type { Customer, Product } from '../../../../lib/types';
 import { OrderForm } from './order-form';
@@ -6,7 +6,7 @@ import { OrderForm } from './order-form';
 export const metadata = { title: 'New order · FX Desk' };
 
 export default async function NewOrderPage() {
-  const s = await requireRole('owner', 'sales');
+  const s = await requireAccess('/orders/new');
   const supabase = await supabaseServer();
   const [{ data: customers }, { data: products }, { data: stock }] = await Promise.all([
     supabase.from('customers').select('id, name, city, phone, labels').order('name'),

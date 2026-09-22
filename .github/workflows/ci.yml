@@ -23,7 +23,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx nx sync:check
-      - run: npx nx run-many -t lint typecheck test build --exclude=db-tests
+      - run: npx nx run-many -t test --exclude=db-tests
+      - run: npx nx run-many -t lint typecheck build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://ci.invalid
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci

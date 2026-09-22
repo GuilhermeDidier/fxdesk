@@ -3,7 +3,7 @@
 // amount this business handles stays far below 2^53.
 
 export type Role = 'owner' | 'marketing' | 'sales' | 'warehouse';
-export type OrderStatus = 'pending_approval' | 'confirmed' | 'cancelled';
+export type OrderStatus = 'quote' | 'pending_approval' | 'confirmed' | 'cancelled';
 
 export interface Tenant {
   id: string;
@@ -57,6 +57,8 @@ export interface Order {
   note: string | null;
   approved_at: string | null;
   released_at: string | null;
+  converted_to: string | null;
+  quoted_from: string | null;
   created_at: string;
 }
 

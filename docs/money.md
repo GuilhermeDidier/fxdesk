@@ -29,7 +29,7 @@ One rule everywhere: **round half away from zero**, once per step.
    `SDG = round(total cents × rate_e6 / 10⁸)`, `EUR cents = round(total cents × rate_e6 / 10⁶)`.
 
 Converting the total keeps the pound amount equal to "dollar total × rate", which
-is how a dealer checks the number on his calculator.
+is how a dealer checks the number on a calculator.
 
 The same arithmetic exists twice: in SQL (`private.usd_to_sdg` & co., which
 books the order) and in `libs/money` (which previews it on screen). The
@@ -70,6 +70,21 @@ The triggers run for every database role, including the service role and the
 owner of the functions, so a bug in application code cannot rewrite history
 either. Corrections are new entries (a cancellation, an adjustment), not edits.
 
+## Guards on the rate itself
+
+A rate freezes on first use, so a typo would be booked for good. The database
+refuses a rate below the company's minimum, and a rate that moves more than
+`max_rate_move_bps` (15% by default, per company) against the previous day's.
+A genuine devaluation day larger than that is a settings change, made on
+purpose, not a slip of the keyboard.
+
+## Goods sold before they land
+
+If a product has no landed cost yet (its container is still at sea), the cost
+snapshot uses the supplier's unit price from the latest shipment and is marked
+`provisional`. The snapshot is still frozen; the flag tells the owner that the
+margin leaves out freight and customs.
+
 ## Currency result
 
 An order booked at 8,012.5 locks its price at 68,161,777 SDG. If the dealer pays
@@ -82,6 +97,11 @@ the currency result of that transfer, stored on the allocation in USD and in EUR
 
 Report views (`order_profit`, `line_profit`, `profit_by_period`) only add up the
 integers above. They never join today's rate, today's price or today's cost.
+
+Euro figures per product or customer convert each line on its own and round
+once per line, so their sum can differ by a few cents from the order totals,
+which are converted once per order. Each figure is exact for what it measures;
+neither is recalculated later.
 
 Periods are assigned by the date things happened: sales and cost to the booking
 day, currency result to the day each transfer arrived. A late payment on an old

@@ -98,3 +98,13 @@
     transform: rotate(-2.5deg) scale(1);
   }
 }
+
+@media print {
+  html,
+  body {
+    background: #fff;
+  }
+  .sheet {
+    border-color: transparent;
+  }
+}

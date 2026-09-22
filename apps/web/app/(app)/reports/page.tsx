@@ -1,28 +1,15 @@
 import { formatEur, formatUsd } from '@fxdesk/money';
-import { createHash } from 'node:crypto';
 import Link from 'next/link';
-import { requireRole } from '../../../lib/session';
+import { fingerprint, groupLines, marginPct, type Ccy, type Figures, type LineRow, type PeriodRow } from '../../../lib/profit';
+import { requireAccess } from '../../../lib/session';
 import { supabaseServer } from '../../../lib/supabase/server';
 
 export const metadata = { title: 'Profit · FX Desk' };
 
 const TABS = { month: 'Month', week: 'Week', product: 'Product', customer: 'Customer', order: 'Order' } as const;
 type Tab = keyof typeof TABS;
-type Ccy = 'usd' | 'eur';
-
-interface Figures {
-  key: string;
-  label: string;
-  sub?: string;
-  count: number;
-  revenue: number;
-  cost: number;
-  fx: number | null;
-  fingerprint?: string;
-}
-
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ by?: string; ccy?: string }> }) {
-  const s = await requireRole('owner');
+  const s = await requireAccess('/reports');
   const q = await searchParams;
   const tab: Tab = q.by && q.by in TABS ? (q.by as Tab) : 'month';
   const ccy: Ccy = q.ccy === 'eur' ? 'eur' : 'usd';
@@ -34,7 +21,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   let rows: Figures[] = [];
   if (tab === 'month' || tab === 'week') {
     const { data } = await supabase.from('profit_by_period').select('*').eq('grain', tab).order('period_start', { ascending: false });
-    rows = (data ?? []).map((r) => {
+    rows = ((data ?? []) as (PeriodRow & Record<string, number>)[]).map((r) => {
       const closed = tab === 'month' && r.period_start < currentMonth;
       return {
         key: r.period_start,
@@ -49,20 +36,15 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         fx: r['fx' + c],
         // A digest of the stored integers for a closed month. Run this report
         // again next year: if the fingerprint matches, not one cent moved.
-        fingerprint: closed
-          ? createHash('sha256')
-              .update(JSON.stringify([r.period_start, r.orders, r.revenue_usd_cents, r.cost_usd_cents, r.fx_usd_cents, r.revenue_eur_cents, r.cost_eur_cents, r.fx_eur_cents]))
-              .digest('hex')
-              .slice(0, 12)
-          : undefined,
+        fingerprint: closed ? fingerprint(r) : undefined,
       };
     });
   } else if (tab === 'order') {
     const { data } = await supabase.from('order_profit').select('*').order('number', { ascending: false }).limit(200);
     rows = (data ?? []).map((r) => ({
       key: r.order_id,
-      label: `#${r.number} · ${r.customer_name}`,
-      sub: r.booked_on,
+      label: `#${r.number}, ${r.customer_name}`,
+      sub: r.cost_provisional ? `${r.booked_on}, provisional cost` : r.booked_on,
       count: 1,
       revenue: r['revenue' + c],
       cost: r['cost' + c],
@@ -70,26 +52,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     }));
   } else {
     const { data } = await supabase.from('line_profit').select('*');
-    const groups = new Map<string, Figures & { orders: Set<string> }>();
-    for (const r of data ?? []) {
-      const key = tab === 'product' ? r.product_id : r.customer_id;
-      const g = groups.get(key) ?? {
-        key,
-        label: tab === 'product' ? r.product_name : r.customer_name,
-        sub: tab === 'product' ? r.sku : undefined,
-        count: 0,
-        revenue: 0,
-        cost: 0,
-        fx: null,
-        orders: new Set<string>(),
-      };
-      g.orders.add(r.order_id);
-      g.count = tab === 'product' ? g.count + r.qty : g.orders.size;
-      g.revenue += r['revenue' + c];
-      g.cost += r['cost' + c];
-      groups.set(key, g);
-    }
-    rows = [...groups.values()].sort((a, b) => b.revenue - b.cost - (a.revenue - a.cost));
+    rows = groupLines((data ?? []) as LineRow[], tab, ccy);
   }
 
   const total = rows.reduce(
@@ -165,7 +128,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                   <td className="px-2 text-end text-muted">{fmt(r.cost)}</td>
                   <td className="px-2 text-end">
                     {fmt(margin)}
-                    <span className="block text-xs text-muted">{r.revenue ? ((margin / r.revenue) * 100).toFixed(1) : '0.0'}%</span>
+                    <span className="block text-xs text-muted">{marginPct(r)}</span>
                   </td>
                   {showFx && (
                     <>
@@ -175,7 +138,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                   )}
                   {tab === 'month' && (
                     <td className="px-4 text-end">
-                      {r.fingerprint ? <span className="rounded bg-stamp/10 px-1.5 py-0.5 text-xs text-stamp">{r.fingerprint}</span> : <span className="text-xs text-muted">—</span>}
+                      {r.fingerprint && <span className="rounded bg-stamp/10 px-1.5 py-0.5 text-xs text-stamp" title="Digest of this closed month's stored totals">{r.fingerprint}</span>}
                     </td>
                   )}
                 </tr>
