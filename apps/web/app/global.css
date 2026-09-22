@@ -1,0 +1,100 @@
+@import 'tailwindcss';
+
+/*
+ * Tokens. Paper and ink are the back office's carbon-copy slips; petrol is
+ * the tenant's brand colour (overridden per tenant at runtime); violet is
+ * rubber-stamp ink and is used for one thing only: numbers that are frozen
+ * in the books. Sand and red are the client's own names for discount bands.
+ */
+@theme {
+  --color-paper: #edf0f3;
+  --color-sheet: #ffffff;
+  --color-ink: #13212c;
+  --color-muted: #52616d;
+  --color-rule: #cfd6dc;
+  --color-brand: var(--brand, #0e5566);
+  --color-stamp: #5b3fa0;
+  --color-sand: #e6d3a6;
+  --color-sand-ink: #6b4f12;
+  --color-red: #b8391f;
+  --color-red-wash: #f6ddd6;
+  --color-paid: #2e6a3b;
+  --color-paid-wash: #dcebdc;
+
+  --font-display: var(--font-schibsted), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-public), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-spline-mono), ui-monospace, monospace;
+}
+
+@layer base {
+  html {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  .field {
+    @apply w-full rounded-md border border-rule bg-sheet px-3 py-2 text-sm text-ink;
+    @apply placeholder:text-muted/60 focus:border-brand focus:outline-none;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 bg-brand text-white hover:brightness-110;
+  }
+  .btn-quiet {
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 border border-rule bg-sheet text-ink hover:border-ink/40;
+  }
+
+  .sheet {
+    @apply rounded-lg border border-rule bg-sheet;
+  }
+
+  .eyebrow {
+    @apply font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted;
+  }
+
+  /* The rubber stamp: anything frozen in the books wears it. */
+  .stamp {
+    @apply inline-flex flex-col items-start gap-0.5 rounded-sm px-3 py-1.5 font-mono uppercase text-stamp;
+    border: 2px solid currentColor;
+    box-shadow: inset 0 0 0 2px var(--color-sheet), inset 0 0 0 3px currentColor;
+    transform: rotate(-2.5deg);
+    letter-spacing: 0.08em;
+    -webkit-mask-image: radial-gradient(circle at 30% 40%, #000 60%, rgb(0 0 0 / 0.78) 100%);
+    mask-image: radial-gradient(circle at 30% 40%, #000 60%, rgb(0 0 0 / 0.78) 100%);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .stamp-in {
+      animation: stamp-in 260ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+    }
+  }
+}
+
+@keyframes stamp-in {
+  from {
+    opacity: 0;
+    transform: rotate(-9deg) scale(1.35);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-2.5deg) scale(1);
+  }
+}

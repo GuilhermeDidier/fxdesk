@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, typecheck, unit tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx nx sync:check
+      - run: npx nx run-many -t lint typecheck test build --exclude=db-tests
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci.invalid
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci
+
+  database:
+    name: Migrations, RLS and money rules against a real Supabase
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: npm ci
+      - name: Start Supabase and apply every migration from scratch
+        run: supabase start -x realtime,imgproxy,mailpit,studio,edge-runtime,logflare,vector,supavisor,postgres-meta
+      - name: Export connection settings
+        run: |
+          supabase status -o env \
+            --override-name api.url=NEXT_PUBLIC_SUPABASE_URL \
+            --override-name auth.anon_key=NEXT_PUBLIC_SUPABASE_ANON_KEY \
+            --override-name auth.service_role_key=SUPABASE_SERVICE_ROLE_KEY \
+            --override-name db.url=DATABASE_URL | sed 's/"//g' >> "$GITHUB_ENV"
+      - run: npx nx test db-tests
+      - name: Seed the demo tenant (exercises the seed through the same functions the app uses)
+        run: npx tsx scripts/seed.ts
+        env:
+          DEMO_PASSWORD: ci-demo-password

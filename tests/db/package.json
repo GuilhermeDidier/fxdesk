@@ -1,0 +1,18 @@
+{
+  "name": "@fxdesk/db-tests",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "nx": {
+    "name": "db-tests",
+    "targets": {
+      "test": {
+        "command": "vitest run",
+        "options": { "cwd": "tests/db" }
+      }
+    }
+  },
+  "dependencies": {
+    "@fxdesk/money": "*"
+  }
+}
