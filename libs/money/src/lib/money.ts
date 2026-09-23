@@ -179,8 +179,9 @@ function formatMinor(minor: number, decimals: number): string {
   return (negative ? '−' : '') + group(whole) + frac;
 }
 
-export const formatUsd = (cents: number) => '$' + formatMinor(cents, 2);
-export const formatEur = (cents: number) => '€' + formatMinor(cents, 2);
+const signed = (symbol: string, cents: number) => (cents < 0 ? '−' : '') + symbol + formatMinor(Math.abs(cents), 2);
+export const formatUsd = (cents: number) => signed('$', cents);
+export const formatEur = (cents: number) => signed('€', cents);
 export const formatSdg = (sdg: number) => formatMinor(sdg, 0) + ' SDG';
 export const formatBps = (bps: number) => formatMinor(bps, 2).replace(/\.?0+$/, '') + '%';
 

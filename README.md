@@ -92,7 +92,7 @@ race (the last of an account's daily limit, the last units in stock).
 | `tests/db/rls` | every cost table and profit view returns nothing to sales, rows to the owner; warehouse sees no payments; tenants are isolated; anonymous gets nothing |
 | `tests/db/payments` | 3,000,000 SDG cap, duplicate transaction codes, 15,000,000 SDG daily limit, currency result to the cent, no release before full payment |
 | `tests/db/reports` | reports are identical after price, cost and rate changes; used rates and closed shipments cannot be edited; provisional cost for goods at sea |
-| `tests/db/quotes` | quotes take no payment and reach no report; conversion re-prices from the catalogue, once; marketing keeps customers but never sees money |
+| `tests/db/quotes` | quotes take no payment and reach no report; conversion re-prices from the catalogue, once; marketing keeps customers but never sees payments or costs |
 
 CI runs lint, typecheck, unit tests and the build, then starts a local Supabase
 in Docker, applies every migration from scratch and runs the database suites.

@@ -100,7 +100,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
                     {o.number}
                   </Link>
                 </td>
-                <td className="num px-2 text-muted">{o.booked_on}</td>
+                <td className="num whitespace-nowrap px-2 text-muted">{o.booked_on}</td>
                 <td className="px-2">
                   {o.customer.name}
                   {o.customer.city && <span className="text-muted">, {o.customer.city}</span>}

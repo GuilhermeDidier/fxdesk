@@ -25,6 +25,13 @@ interface Allocation {
   payment: { bank_tx_code: string; received_on: string; sdg_per_usd_e6: number; bank_account: { name: string } };
 }
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await supabaseServer();
+  const { data } = await supabase.from('orders').select('number, status').eq('id', id).maybeSingle();
+  return { title: data ? `${data.status === 'quote' ? 'Quote' : 'Order'} #${data.number} · FX Desk` : 'FX Desk' };
+}
+
 const longDate = (d: string) =>
   new Date(d + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 

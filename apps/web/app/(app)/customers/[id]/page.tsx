@@ -92,7 +92,7 @@ export default async function CustomerPage({ params, searchParams }: { params: P
                       {o.number}
                     </Link>
                   </td>
-                  <td className="num px-2 text-muted">{o.booked_on}</td>
+                  <td className="num whitespace-nowrap px-2 text-muted">{o.booked_on}</td>
                   <td className="px-2">
                     <StatusBadge order={o} />
                   </td>

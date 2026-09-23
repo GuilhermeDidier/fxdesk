@@ -198,7 +198,7 @@ export function OrderForm({ customers, products, onHand, policy, maxTransferSdg,
                       <>
                         <span className="font-semibold">{formatUsd(priceLine.netUsdCents)}</span>
                         {priceLine.discountUsdCents > 0 && (
-                          <span className="block text-xs text-muted">−{formatUsd(priceLine.discountUsdCents)}</span>
+                          <span className="block text-xs text-muted">{formatUsd(-priceLine.discountUsdCents)}</span>
                         )}
                       </>
                     ) : null}
@@ -234,7 +234,7 @@ export function OrderForm({ customers, products, onHand, policy, maxTransferSdg,
         <div className="space-y-2 p-5">
           <p className="eyebrow">Order total</p>
           <SlipRow label="List price" value={formatUsd(gross)} />
-          <SlipRow label="Discounts" value={discounts ? `−${formatUsd(discounts)}` : formatUsd(0)} />
+          <SlipRow label="Discounts" value={formatUsd(-discounts)} />
           <SlipRow label="Total in dollars" value={formatUsd(priced?.totalUsdCents ?? 0)} strong />
         </div>
 

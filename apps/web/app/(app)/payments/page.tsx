@@ -93,7 +93,7 @@ export default async function PaymentsPage() {
           <tbody className="divide-y divide-rule">
             {(payments ?? []).map((p) => (
               <tr key={p.id}>
-                <td className="num px-4 py-2 text-muted">{p.received_on}</td>
+                <td className="num whitespace-nowrap px-4 py-2 text-muted">{p.received_on}</td>
                 <td className="px-2">
                   <span className="num text-xs">{p.bank_tx_code}</span>
                   <span className="block text-xs text-muted">{p.bank_account.name}</span>

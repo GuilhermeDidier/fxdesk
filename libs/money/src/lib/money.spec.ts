@@ -119,7 +119,8 @@ describe('parsing and formatting', () => {
 
   it('formats for humans', () => {
     expect(formatUsd(850_693)).toBe('$8,506.93');
-    expect(formatEur(-12_500)).toBe('€−125.00');
+    expect(formatEur(-12_500)).toBe('−€125.00');
+    expect(formatUsd(-116_919)).toBe('−$1,169.19');
     expect(formatSdg(68_161_777)).toBe('68,161,777 SDG');
     expect(formatRate(8_012_500_000)).toBe('8,012.5');
     expect(formatRate(8_000_000_000)).toBe('8,000');

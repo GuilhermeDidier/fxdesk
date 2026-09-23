@@ -67,11 +67,11 @@ begin
   select array_agg(id order by name) into cust from public.customers where tenant_id = t;
 
   insert into public.bank_accounts (tenant_id, name, bank) values
-    (t, 'BOK · operations',   'Bank of Khartoum'),
-    (t, 'BOK · collections',  'Bank of Khartoum'),
-    (t, 'Faisal · main',      'Faisal Islamic Bank'),
-    (t, 'Omdurman · main',    'Omdurman National Bank'),
-    (t, 'Blue Nile · main',   'Blue Nile Mashreq Bank');
+    (t, 'BOK operations',     'Bank of Khartoum'),
+    (t, 'BOK collections',    'Bank of Khartoum'),
+    (t, 'Faisal main',        'Faisal Islamic Bank'),
+    (t, 'Omdurman main',      'Omdurman National Bank'),
+    (t, 'Blue Nile main',     'Blue Nile Mashreq Bank');
   select array_agg(id order by name) into accts from public.bank_accounts where tenant_id = t;
 
   -- shipments: two closed (costs spread per unit), one still in transit
@@ -211,7 +211,8 @@ begin
     while left_sdg > 0 and pay_day <= today loop
       amt := least(3000000, left_sdg);
       placed := false;
-      foreach a in array accts loop
+      -- dealers are sent to whichever account is free, not always the first
+      for a in select u.id from unnest(accts) as u(id) order by random() loop
         select coalesce(sum(amount_sdg), 0) into used from public.payments
          where bank_account_id = a and received_on = pay_day;
         if used + amt <= 15000000 then

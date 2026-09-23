@@ -1,6 +1,6 @@
 'use client';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { toast, Toaster } from 'sonner';
 
 /**
@@ -12,10 +12,12 @@ export function Flash() {
   const router = useRouter();
   const pathname = usePathname();
   const done = params.get('done');
+  const shown = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!done) return;
-    toast.success(done);
+    if (!done || shown.current === done) return;
+    shown.current = done;
+    toast.success(done, { id: done });
     const rest = new URLSearchParams(params);
     rest.delete('done');
     router.replace(rest.size ? `${pathname}?${rest}` : pathname, { scroll: false });

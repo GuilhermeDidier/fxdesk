@@ -104,7 +104,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
                   </td>
                   <td className="num px-2 text-end">{s.boughtUsdCents ? formatUsd(s.boughtUsdCents) : null}</td>
                   <td className={`num px-2 text-end ${s.openSdg ? 'text-red' : ''}`}>{s.openSdg ? formatSdg(s.openSdg) : null}</td>
-                  <td className="num px-4 text-end text-muted">{s.lastOrderOn}</td>
+                  <td className="num whitespace-nowrap px-4 text-end text-muted">{s.lastOrderOn}</td>
                 </tr>
               );
             })}
