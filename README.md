@@ -4,7 +4,7 @@ An order desk for a solar-equipment importer: products **priced in dollars**,
 **paid in Sudanese pounds** by bank transfer, profit **reported in euros**,
 while the pound loses about a quarter of its value in three months.
 
-**Live demo:** _link after deploy_. Open it as the sales adviser, the owner, the warehouse or marketing with
+**Live demo: [fxdesk-demo.vercel.app](https://fxdesk-demo.vercel.app)**. Open it as the sales adviser, the owner, the warehouse or marketing with
 one click, and switch persona from the sidebar at any time. Each persona is a real user: what it can see is
 decided by the database, not hidden by the screen.
 
