@@ -48,7 +48,7 @@ async function main() {
     }
   }
 
-  const db = new pg.Client({ connectionString: need('DATABASE_URL'), ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false } });
+  const db = new pg.Client({ connectionString: need('DATABASE_URL'), ssl: /localhost|127\.0\.0\.1/.test(need('DATABASE_URL')) ? false : { rejectUnauthorized: false } });
   await db.connect();
   try {
     await db.query('begin');
