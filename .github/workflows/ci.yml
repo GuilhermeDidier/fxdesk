@@ -32,9 +32,6 @@ jobs:
   database:
     name: Migrations, RLS and money rules against a real Supabase
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -45,10 +42,10 @@ jobs:
         with:
           version: latest
       - run: npm ci
-      # Anonymous pulls from ghcr.io get rate limited on shared runners
-      - name: Log in to the GitHub container registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      # ghcr.io rate-limits shared runners; pull the same images from the AWS public mirror
       - name: Start Supabase and apply every migration from scratch
+        env:
+          SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws
         run: |
           EXCLUDE=realtime,imgproxy,mailpit,studio,edge-runtime,logflare,vector,supavisor,postgres-meta
           supabase start -x "$EXCLUDE" || (sleep 30 && supabase start -x "$EXCLUDE")
