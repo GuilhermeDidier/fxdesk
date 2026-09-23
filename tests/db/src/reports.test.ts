@@ -43,9 +43,15 @@ describe('a report run today gives the same numbers later', () => {
     await w.db.query(`insert into shipment_lines (shipment_id, tenant_id, product_id, qty, unit_cost_usd_cents) values ($1, $2, $3, 10, 150000)`, [sh.id, w.tenantId, w.products.inverter]);
     const closed = await w.users.owner.client.rpc('close_shipment', { p_shipment_id: sh.id });
     expect(closed.error).toBeNull();
-    await w.db.query(`insert into fx_rates (tenant_id, rate_date, sdg_per_usd_e6, eur_per_usd_e6) values ($1, $2::date + 1, 9500000000, 850000)`, [w.tenantId, w.today]);
+    await w.db.query(`insert into fx_rates (tenant_id, rate_date, sdg_per_usd_e6, eur_per_usd_e6) values ($1, $2::date + 1, 8800000000, 870000)`, [w.tenantId, w.today]);
 
     expect(await snapshot()).toEqual(before);
+  });
+
+  it('refuses a mistyped rate that jumps more than the allowed daily move', async () => {
+    await expect(
+      w.db.query(`insert into fx_rates (tenant_id, rate_date, sdg_per_usd_e6, eur_per_usd_e6) values ($1, $2::date + 2, 80125000000, 870000)`, [w.tenantId, w.today]),
+    ).rejects.toThrow(/moves more than 15.0 percent/);
   });
 
   it('will not let a rate that is already used be edited', async () => {
